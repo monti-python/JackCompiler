@@ -103,23 +103,28 @@ public class Parser {
             this.curToken = null;
         }
         else if (this.rules.containsKey(rule)) {  // rule is non-terminal rule
-            element = document.createElement(rule);
             String[] childRules = this.rules.get(rule).split(" +");
-            for (String childRule: childRules) element.appendChild(comp(childRule));
-        }
-        else if (rule.endsWith("?")) {  // rule is optional
-            String baseRule = rule.substring(0, rule.length()-1);
-            if (test(baseRule)) {
-                return comp(baseRule);
+            if (childRules.length == 1) return comp(childRules[0]);
+            element = document.createElement(rule);
+            for (String childRule: childRules) {
+                if (childRule.endsWith("?")) {  // rule is optional
+                    String baseRule = childRule.substring(0, childRule.length()-1);
+                    if (test(baseRule)) {
+                        element.appendChild(comp(baseRule));
+                    }
+                }
+                else if (childRule.endsWith("*")) {  // rule is optional
+                    String baseRule = childRule.substring(0, childRule.length()-1);
+                    while (test(baseRule)) {
+                        element.appendChild(comp(baseRule));
+                    }
+                }
+                else {
+                    element.appendChild(comp(childRule));
+                }
             }
         }
-        else if (rule.endsWith("*")) {  // rule is optional
-            String baseRule = rule.substring(0, rule.length()-1);
-            element = document.createElement(baseRule+"List");
-            while (test(baseRule)) {
-                element.appendChild(comp(baseRule));
-            }
-        }
+
         else if (rule.startsWith("(") && rule.endsWith(")")) {  // rule has different options
             for (String rule_try : rule.substring(1, rule.length()-1).split("\\|")) {
                 if (test(rule_try)) {
