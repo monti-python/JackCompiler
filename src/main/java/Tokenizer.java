@@ -26,11 +26,15 @@ public class Tokenizer {
             // Try each pattern for each token (double-loop)
             Matcher matcher = tokenPattern.matcher(content);
             while (matcher.find()) {
+                int tokenPosition = matcher.start();
                 for (Token.TokenType tokenType: Token.TokenType.values()) {
                     if (tokenType.equals(Token.TokenType.Comment)) continue;
                     String match = matcher.group(tokenType.name());
                     if (match != null) {
-                        tokens.add(new Token(tokenType, match));
+                        String[] linesTillPosition = content.substring(0, tokenPosition+1).split("\n");
+                        int lineNumber = linesTillPosition.length;
+                        int columnNumber = linesTillPosition[linesTillPosition.length-1].length();
+                        tokens.add(new Token(tokenType, match, lineNumber, columnNumber));
                         break;
                     }
                 }

@@ -24,14 +24,16 @@ public class TokenAdapter extends XmlAdapter<Object, Token> {
         Element element = (Element) rawElement;
         return new Token(
                 Token.TokenType.valueOf(StringUtils.capitalize(element.getLocalName())),
-                element.getTextContent().replaceAll("^ | $", "")
+                element.getTextContent().replaceAll("^ | $", ""),
+                null,
+                null
         );
     }
 
     @Override
     public Object marshal(Token token) {
         Element element = doc.createElement(StringUtils.decapitalize(token.getType().toString()));
-        element.setTextContent(" " + token.getData() + " ");
+        element.setTextContent(" " + token.getValue() + " ");
         return element;
     }
 

@@ -19,29 +19,42 @@ public class Token {
     }
 
     private final TokenType type;
-    private final String data;
+    private final String value;
+    private final Integer line;
+    private final Integer column;
 
-    public Token(TokenType type, String data) {
+    public Token(TokenType type, String value, Integer line, Integer col) {
         this.type = type;
-        this.data = data;
+        this.value = value;
+        this.line = line;
+        this.column = col;
     }
 
     public TokenType getType() {
         return type;
     }
 
-    public String getData() {
-        return data;
+    public String getValue() {
+        return value;
     }
+
+    public Integer getLine() {
+        return line;
+    }
+
+    public Integer getColumn() {
+        return column;
+    }
+
 
     public boolean equals(Object other) {
         if (this.getClass() != other.getClass()) return false;
         Token other_token = (Token)other;
-        return this.getType() == other_token.getType() && this.getData().equals(other_token.getData());
+        return this.getType() == other_token.getType() && this.getValue().equals(other_token.getValue());
     }
 
     @Override
     public String toString() {
-        return String.format("(%s '%s')", type.name(), data);
+        return String.format("(%s '%s')", type.name(), value);
     }
 }

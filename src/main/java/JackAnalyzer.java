@@ -22,7 +22,7 @@ public class JackAnalyzer {
         Path src_path = Paths.get(args[0]);
         Path tgt_path;
 
-        CodeWriter writer = new CodeWriter();
+        //CodeWriter writer = new CodeWriter();
 
         List<Token> tokens = new ArrayList<>();
 

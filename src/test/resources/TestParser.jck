@@ -1,0 +1,16 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+/// File name: projects/10/ExpressionLessSquare/Square.jack
+
+/** Expressionless version of projects/10/Square/Square.jack. */
+
+class Square {
+
+   field int x;
+   static int size;
+   field Point p1, p2;
+
+   constructor Square new(int a, Square other)
+
+}
