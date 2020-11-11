@@ -5,6 +5,7 @@ import main.java.model.Token;
 import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,6 +18,8 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Parser {
 
@@ -29,16 +32,29 @@ public class Parser {
         this.tokenIterator = tokenIterator;
         this.rules = new HashMap<>();
         rules.put("class", "'class' className '{' classVarDec* subRoutineDec* '}'");
-        rules.put("classVarDec", "('static'|'field') type varName moreVars* ';'");
+        rules.put("classVarDec", "('static'|'field') type varName moreVars*^ ';'");
         rules.put("moreVars", "',' varName");
         rules.put("type", "('int'|'char'|'boolean'|className)");
         rules.put("className", "identifier");
         rules.put("varName", "identifier");
         rules.put("identifier", "/[_A-Za-z][_A-Za-z0-9]*/");
-        rules.put("subRoutineDec", "('constructor'|'method'|'function') ('void'|type) subRoutineName '(' parameterList? ')'");
+        rules.put("subRoutineDec", "('constructor'|'method'|'function') ('void'|type) subRoutineName '(' parameterList? ')' subroutineBody");
         rules.put("subRoutineName", "identifier");
-        rules.put("parameterList", "type varName moreParameters*");
+        rules.put("parameterList", "type varName moreParameters*^");
         rules.put("moreParameters", "',' type varName");
+        rules.put("subroutineBody", "'{' varDec* statement* '}'");
+        rules.put("varDec", "'var' type varName moreVars*^ ';'");
+        rules.put("statement", "(letStatement|returnStatement)");  // incomplete
+        rules.put("letStatement", "'let' varName '=' expression ';'");
+        rules.put("returnStatement", "'return' expression? ';'");
+        rules.put("expression", "term opTerm*^");
+        rules.put("opTerm", "op term");
+        rules.put("term", "(integerConstant|varName)");  // incomplete
+        rules.put("integerConstant", "/[0-9]+/");
+        rules.put("op", "('+'|'-'|'*'|'/'|'&'|'<'|'>'|'=')");  // incomplete
+
+
+
 
         DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
         DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
@@ -82,7 +98,8 @@ public class Parser {
     public Element comp(String rule) throws JackCompilerException {
         Token head = advance();
         Element element = null;
-        if (rule.startsWith("'") && rule.endsWith("'")) {  // rule is a terminal rule
+        // rule is a terminal rule
+        if ( (rule.startsWith("'") && rule.endsWith("'")) || (rule.startsWith("/") && rule.endsWith("/")) ) {
             if (!test(rule)) {
                 throw new JackCompilerException(
                         "Expected token " + rule + " but found '" + head.getValue() + "'", head.getLine(), head.getColumn()
@@ -92,31 +109,31 @@ public class Parser {
             element.setTextContent(" "+head.getValue()+" ");
             this.curToken = null;
         }
-        else if (rule.startsWith("/") && rule.endsWith("/")) {  // rule is regex terminal rule
-            if (!test(rule)) {
-                throw new JackCompilerException(
-                        "Expected token " + rule + " but found '" + head.getValue() + "'", head.getLine(), head.getColumn()
-                );
-            }
-            element = document.createElement(head.getType().toString().toLowerCase());
-            element.setTextContent(" "+head.getValue()+" ");
-            this.curToken = null;
-        }
-        else if (this.rules.containsKey(rule)) {  // rule is non-terminal rule
+        // rule is non-terminal rule
+        else if (this.rules.containsKey(rule)) {
             String[] childRules = this.rules.get(rule).split(" +");
-            if (childRules.length == 1) return comp(childRules[0]);
+            if (childRules.length == 1) return comp(childRules[0]);  // flatten nodes if only one descendant
             element = document.createElement(rule);
             for (String childRule: childRules) {
-                if (childRule.endsWith("?")) {  // rule is optional
+                if (childRule.endsWith("?")) {  // child rule is optional
                     String baseRule = childRule.substring(0, childRule.length()-1);
                     if (test(baseRule)) {
                         element.appendChild(comp(baseRule));
                     }
                 }
-                else if (childRule.endsWith("*")) {  // rule is optional
+                else if (childRule.endsWith("*")) {  // child rule is optional and may be repeated
                     String baseRule = childRule.substring(0, childRule.length()-1);
                     while (test(baseRule)) {
                         element.appendChild(comp(baseRule));
+                    }
+                }
+                else if (childRule.endsWith("*^")) {
+                    String baseRule = childRule.substring(0, childRule.length()-2);
+                    while (test(baseRule)) {
+                        NodeList children = comp(baseRule).getChildNodes();
+                        while (children.getLength() != 0) {
+                            element.appendChild(children.item(0));
+                        }
                     }
                 }
                 else {
@@ -133,8 +150,10 @@ public class Parser {
             }
             throw new JackCompilerException(
                     "Expected token among " + rule + " but found '" + head.getValue() + "'", head.getLine(), head.getColumn()
-            );            }
-        else {  // Unknown rule
+            );
+        }
+        // Unknown rule
+        else {
             throw new JackCompilerException(
                     "Unknown grammar rule: " + rule
             );

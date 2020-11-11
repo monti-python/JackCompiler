@@ -8,9 +8,13 @@
 class Square {
 
    field int x;
-   static int size;
+   static Square next;
    field Point p1, p2;
 
-   constructor Square new(int a, Square other)
+   constructor Square new(int a, Square other) {
+       let x = a;
+       let next = other;
+       return;
+   }
 
 }
