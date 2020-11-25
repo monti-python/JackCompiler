@@ -6,6 +6,9 @@ import main.java.binding.TokenAdapter;
 import main.java.Tokenizer;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
@@ -19,18 +22,25 @@ import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertArrayEquals;
 
+@RunWith(Parameterized.class)
 public class TokenizerTest {
 
-    @Test
-    public void testTokenize() throws IOException, JAXBException {
+    @Parameterized.Parameters
+    public static Iterable<Path> data() throws IOException {
         // Find all .jack files
-        List<Path> paths = Files.find(
+        return Files.find(
                 Paths.get("src/test/resources"),
                 3,
                 (p, bfa) -> (bfa.isRegularFile() && p.toString().toLowerCase().endsWith(".jack"))
         ).collect(Collectors.toList());
-        // For each jack file, compare tokenized result with the reference xml (unmarshalled)
-        for (Path path: paths) {
+    }
+
+    @Parameterized.Parameter
+    public Path path;
+
+    @Test
+    public void testTokenize() throws JAXBException {
+            System.out.println("Testing file: " + path.toString());
             JAXBContext jc = JAXBContext.newInstance(TokenList.class);
             Marshaller marshaller = jc.createMarshaller();
             Unmarshaller unmarshaller = jc.createUnmarshaller();
@@ -41,7 +51,7 @@ public class TokenizerTest {
             List<Token> res_tokens = Tokenizer.tokenize(path);
 
             assertArrayEquals(res_tokens.toArray(), exp_tokens.toArray());
-        }
+
     }
 
 }

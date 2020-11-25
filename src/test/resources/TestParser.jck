@@ -14,7 +14,7 @@ class Square {
    constructor Square new(int a, Square other) {
        let x = a;
        let next = other;
-       return;
+       return this;
    }
 
 }
