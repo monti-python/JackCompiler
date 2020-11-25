@@ -35,11 +35,11 @@ class TokenIterator {
     }
 
     public Token next() {
-        return this.tokenList.get(++idx);
+        return ++idx < tokenList.size() ? this.tokenList.get(idx) : null;
     }
 
     public Token peek(int offset) {
-        return this.tokenList.get(idx+offset);
+        return idx+offset < tokenList.size() ? this.tokenList.get(idx+offset): null;
     }
 
 }
@@ -54,21 +54,18 @@ public class Parser {
     public Parser(List<Token> tokenList) throws ParserConfigurationException {
         this.tokenIterator = new TokenIterator(tokenList);
         this.rules = new HashMap<>();
-        rules.put("class", "'class' className '{' classVarDec* subroutineDec* '}'");
-        rules.put("classVarDec", "('static'|'field') type varName moreVars*^ ';'");
-        rules.put("moreVars", "',' varName");
-        rules.put("type", "('int'|'char'|'boolean'|className)");
-        rules.put("className", "<Identifier>");
-        rules.put("varName", "<Identifier>");
-        rules.put("identifier", "<Identifier>");
-        rules.put("subroutineDec", "('constructor'|'method'|'function') ('void'|type) subroutineName '(' parameterList? ')' subroutineBody");
+        rules.put("class", "'class' <Identifier> '{' classVarDec* subroutineDec* '}'");
+        rules.put("classVarDec", "('static'|'field') type <Identifier> moreVars*^ ';'");
+        rules.put("moreVars", "',' <Identifier>");
+        rules.put("type", "('int'|'char'|'boolean'|<Identifier>)");
+        rules.put("subroutineDec", "('constructor'|'method'|'function') ('void'|type) <Identifier> '(' parameterList? ')' subroutineBody");
         rules.put("subroutineName", "<Identifier>");
-        rules.put("parameterList", "type varName moreParameters*^");
-        rules.put("moreParameters", "',' type varName");
+        rules.put("parameterList", "type <Identifier> moreParameters*^");
+        rules.put("moreParameters", "',' type <Identifier>");
         rules.put("subroutineBody", "'{' varDec* statement* '}'");
-        rules.put("varDec", "'var' type varName moreVars*^ ';'");
+        rules.put("varDec", "'var' type <Identifier> moreVars*^ ';'");
         rules.put("statement", "(letStatement|ifStatement|whileStatement|doStatement|returnStatement)");
-        rules.put("letStatement", "'let' varName indexExpression?^ '=' expression ';'");
+        rules.put("letStatement", "'let' <Identifier> indexExpression?^ '=' expression ';'");
         rules.put("indexExpression", "'[' expression ']'");
         rules.put("ifStatement", "'if' '(' expression ')' '{' statement* '}' else?^");
         rules.put("else", "'else' '{' statement* '}'");
@@ -76,13 +73,14 @@ public class Parser {
         rules.put("doStatement", "'do' subroutineCall ';'");
         rules.put("returnStatement", "'return' expression? ';'");
         rules.put("subroutineCall", "(subroutineCall1|subroutineCall2)");
-        rules.put("subroutineCall1", "subroutineName '(' expressionList? ')'");
-        rules.put("subroutineCall2", "(className|varName) '.' subroutineName '(' expressionList? ')'");
+        rules.put("subroutineCall1", "<Identifier> '(' expressionList? ')'");
+        rules.put("subroutineCall2", "<Identifier> '.' <Identifier> '(' expressionList? ')'");
         rules.put("expressionList", "expression moreExpressions*^");
         rules.put("moreExpressions", "',' expression");
         rules.put("expression", "term opTerm*^");
         rules.put("opTerm", "op term");
-        rules.put("term", "(subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|varName)");  // incomplete
+        rules.put("term", "(indexedExpression|subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|<Identifier>)");  // incomplete
+        rules.put("indexedExpression", "<Identifier> indexExpression");
         rules.put("subExpression", "'(' expression ')'");
         rules.put("unaryExpression", "unaryOp term");
         rules.put("integerConstant", "<IntegerConstant>");
@@ -102,7 +100,11 @@ public class Parser {
     }
 
     public boolean test(String rule) {
-        Token head = tokenIterator.curr();
+        return testOffset(rule, 0);
+    }
+
+    public boolean testOffset(String rule, int offset) {
+        Token head = tokenIterator.peek(offset);
         // TERMINAL RULES
         if (rule.startsWith("'") && rule.endsWith("'")) {  // rule is a literal terminal rule
             return rule.substring(1, rule.length() - 1).equals(head.getValue());
@@ -118,11 +120,12 @@ public class Parser {
             String[] subrules = this.rules.get(rule).split(" +");
             String first = subrules[0];
             if (first.equals("<Identifier>") && subrules.length > 1) {
+                // This is the only case when the Jack language is LL(2), must test first and second rules
                 String second = subrules[1];
-                return test(first) && test(second);
+                return testOffset(first, offset) && testOffset(second, offset+1);
             }
             else {
-                return test(first);
+                return testOffset(first, offset);
             }
         }
         else if (rule.endsWith("*") || rule.endsWith("?")) {  // rule is optional
@@ -130,7 +133,7 @@ public class Parser {
         }
         else if (rule.startsWith("(") && rule.endsWith(")")) {  // rule has different options
             for (String rule_try: rule.substring(1, rule.length()-1).split("\\|")) {
-                if (test(rule_try)) {
+                if (testOffset(rule_try, offset)) {
                     return true;
                 }
             }
