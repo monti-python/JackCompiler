@@ -62,8 +62,9 @@ public class Parser {
         rules.put("subroutineName", "<Identifier>");
         rules.put("parameterList", "type <Identifier> moreParameters*^");
         rules.put("moreParameters", "',' type <Identifier>");
-        rules.put("subroutineBody", "'{' varDec* statement* '}'");
-        rules.put("varDec", "'var' type <Identifier> moreVars*^ ';'");
+        rules.put("subroutineBody", "'{' varDec* statements '}'");
+        rules.put("statements", "statement*^");
+        rules.put("varDec", "'var' type^ <Identifier> moreVars*^ ';'");
         rules.put("statement", "(letStatement|ifStatement|whileStatement|doStatement|returnStatement)");
         rules.put("letStatement", "'let' <Identifier> indexExpression?^ '=' expression ';'");
         rules.put("indexExpression", "'[' expression ']'");
@@ -161,46 +162,49 @@ public class Parser {
         // rule is non-terminal rule
         else if (this.rules.containsKey(rule)) {
             String[] childRules = this.rules.get(rule).split(" +");
-            if (childRules.length == 1) return comp(childRules[0]);  // flatten nodes if only one descendant
+            //if (childRules.length == 1) return comp(childRules[0]);  // flatten nodes if only one descendant
             element = document.createElement(rule);
             for (String childRule: childRules) {
+                boolean skip = false;
+                List<Element> childrenElements = new ArrayList<>();
+                // Check if we should pass children through to the parent element
+                if (childRule.endsWith("^")) {
+                    skip = true;
+                    childRule = childRule.substring(0, childRule.length()-1);
+                }
+                // Gather children elements
                 if (childRule.endsWith("?")) {  // child rule is optional
                     String baseRule = childRule.substring(0, childRule.length()-1);
+
                     if (test(baseRule)) {
-                        element.appendChild(comp(baseRule));
-                    }
-                }
-                else if (childRule.endsWith("?^")) {
-                    String baseRule = childRule.substring(0, childRule.length()-2);
-                    if (test(baseRule)) {
-                        NodeList children = comp(baseRule).getChildNodes();
-                        while (children.getLength() != 0) {
-                            element.appendChild(children.item(0));
-                        }
+                        childrenElements.add(comp(baseRule));
                     }
                 }
                 else if (childRule.endsWith("*")) {  // child rule is optional and may be repeated
                     String baseRule = childRule.substring(0, childRule.length()-1);
                     while (test(baseRule)) {
-                        element.appendChild(comp(baseRule));
+                        childrenElements.add(comp(baseRule));
                     }
                 }
-                else if (childRule.endsWith("*^")) {
-                    String baseRule = childRule.substring(0, childRule.length()-2);
-                    while (test(baseRule)) {
-                        NodeList children = comp(baseRule).getChildNodes();
+                else {
+                    childrenElements.add(comp(childRule));
+                }
+                // Append the child element (skip=false) or pass-through all descendants directly (skip=true)
+                for (Element childElement: childrenElements) {
+                    if (skip) {
+                        NodeList children = childElement.getChildNodes();
                         while (children.getLength() != 0) {
                             element.appendChild(children.item(0));
                         }
                     }
-                }
-                else {
-                    element.appendChild(comp(childRule));
+                    else {
+                        element.appendChild(childElement);
+                    }
                 }
             }
         }
-
-        else if (rule.startsWith("(") && rule.endsWith(")")) {  // rule has different options
+        // Rule has different options
+        else if (rule.startsWith("(") && rule.endsWith(")")) {
             for (String rule_try : rule.substring(1, rule.length()-1).split("\\|")) {
                 if (test(rule_try)) {
                     return comp(rule_try);
@@ -219,99 +223,5 @@ public class Parser {
         return element;
     }
 
-/*
-    public void compileClass() throws JackCompilerException {
-        compileLiteral("class");
-        compileTokenType(Token.TokenType.Identifier);
-        compileLiteral("{");
-        while (Arrays.asList("static", "field").contains(advance().getValue())) {
-            compileClassVarDec();
-        }
-        while (Arrays.asList("constructor", "function", "method").contains(advance().getValue())) {
-            compileSubRoutineDec();
-        }
-        compileLiteral("}");
-    }
-
-    void compileClassVarDec() throws JackCompilerException {
-        compilePattern("static|field");
-        compileType();
-        compileTokenType(Token.TokenType.Identifier);
-        while (advance().getValue().equals(",")) {
-            compileLiteral(",");
-            compileTokenType(Token.TokenType.Identifier);
-        }
-        compileLiteral(";");
-    }
-
-    void compileSubRoutineDec() throws JackCompilerException {
-        compilePattern("constructor|function|method");
-        Token token = advance();
-        if (!(Arrays.asList("int", "char", "boolean", "void").contains(token.getValue())) && !(token.getType() == Token.TokenType.Identifier)) {
-            throw new JackCompilerException(
-                    "Expected a valid return type but found '" + token.getValue() + "'", token.getLine(), token.getColumn()
-            );
-        }
-        this.curToken = null;
-        compileTokenType(Token.TokenType.Identifier);
-        compileLiteral("(");
-        if(!advance().getValue().equals(")")) compileParameterList();
-        compileLiteral(")");
-
-    }
-
-    void compileParameterList() throws JackCompilerException {
-        compileType();
-        compileTokenType(Token.TokenType.Identifier);
-        while (advance().getValue().equals(",")) {
-            compileLiteral(",");
-            compileType();
-            compileTokenType(Token.TokenType.Identifier);
-        }
-    }
-
-    void compileType() throws JackCompilerException {
-        Token token = advance();
-        if (!(Arrays.asList("int", "char", "boolean").contains(token.getValue())) && !(token.getType() == Token.TokenType.Identifier)) {
-            throw new JackCompilerException(
-                    "Expected a valid type but found '" + token.getValue() + "'", token.getLine(), token.getColumn()
-            );
-        }
-        this.curToken = null;
-    }
-
-    private void compileLiteral(String value) throws JackCompilerException {
-        Token token = advance();
-        if (!token.getValue().equals(value)) {
-            throw new JackCompilerException(
-                    "Expected token " + value + " but found '" + token.getValue() + "'", token.getLine(), token.getColumn()
-            );
-//            return false;
-        }
-        this.curToken = null;
-    }
-
-    private void compilePattern(String regex) throws JackCompilerException {
-        Token token = advance();
-        if (!token.getValue().matches(regex)) {
-            throw new JackCompilerException(
-                    "Expected token " + regex + " but found '" + token.getValue() + "'", token.getLine(), token.getColumn()
-            );
-//            return false;
-        }
-        this.curToken = null;
-    }
-
-    private void compileTokenType(Token.TokenType tokenType) throws JackCompilerException {
-        Token token = advance();
-        if (!tokenType.equals(token.getType())) {
-            throw new JackCompilerException(
-                    "Expected token type '" + tokenType + "' but found type'" + token.getType() + "'", token.getLine(), token.getColumn()
-            );
-//            return false;
-        }
-        this.curToken = null;
-    }
-*/
 }
 
