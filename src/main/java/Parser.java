@@ -2,7 +2,6 @@ package main.java;
 
 import main.java.exceptions.JackCompilerException;
 import main.java.model.Token;
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -10,16 +9,7 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
-import java.io.File;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 class TokenIterator {
@@ -150,6 +140,7 @@ public class Parser {
     }
 
     public Element comp(String rule) throws JackCompilerException {
+        rule = rule.endsWith("^") ? rule.substring(0, rule.length()-1) : rule; // remove pass-through marker
         Token head = tokenIterator.curr();
         Element element;
         // TERMINAL RULE
@@ -207,7 +198,7 @@ public class Parser {
                 }
             }
         }
-        // Rule has different options SUPPORT ^ MARK !!!
+        // Rule has different options
         else if (rule.startsWith("(") && rule.endsWith(")")) {
             for (String rule_try : rule.substring(1, rule.length()-1).split("\\|")) {
                 if (test(rule_try)) {
