@@ -58,9 +58,10 @@ public class Parser {
         rules.put("classVarDec", "('static'|'field') type <Identifier> moreVars*^ ';'");
         rules.put("moreVars", "',' <Identifier>");
         rules.put("type", "('int'|'char'|'boolean'|<Identifier>)");
-        rules.put("subroutineDec", "('constructor'|'method'|'function') ('void'|type) <Identifier> '(' parameterList? ')' subroutineBody");
+        rules.put("subroutineDec", "('constructor'|'method'|'function') ('void'|type) <Identifier> '(' parameterList ')' subroutineBody");
         rules.put("subroutineName", "<Identifier>");
-        rules.put("parameterList", "type <Identifier> moreParameters*^");
+        rules.put("parameterList", "parameterListOpt?^");
+        rules.put("parameterListOpt", "type <Identifier> moreParameters*^");
         rules.put("moreParameters", "',' type <Identifier>");
         rules.put("subroutineBody", "'{' varDec* statements '}'");
         rules.put("statements", "statement*^");
@@ -68,22 +69,23 @@ public class Parser {
         rules.put("statement", "(letStatement|ifStatement|whileStatement|doStatement|returnStatement)");
         rules.put("letStatement", "'let' <Identifier> indexExpression?^ '=' expression ';'");
         rules.put("indexExpression", "'[' expression ']'");
-        rules.put("ifStatement", "'if' '(' expression ')' '{' statement* '}' else?^");
+        rules.put("ifStatement", "'if' '(' expression ')' '{' statements '}' else?^");
         rules.put("else", "'else' '{' statement* '}'");
-        rules.put("whileStatement", "'while' '(' expression ')' '{' statement* '}'");
-        rules.put("doStatement", "'do' subroutineCall ';'");
+        rules.put("whileStatement", "'while' '(' expression ')' '{' statements '}'");
+        rules.put("doStatement", "'do' subroutineCall^ ';'");
         rules.put("returnStatement", "'return' expression? ';'");
-        rules.put("subroutineCall", "(subroutineCall1|subroutineCall2)");
+        rules.put("subroutineCall", "(subroutineCall1|subroutineCall2)^");
         rules.put("subroutineCall1", "<Identifier> '(' expressionList? ')'");
         rules.put("subroutineCall2", "<Identifier> '.' <Identifier> '(' expressionList? ')'");
         rules.put("expressionList", "expression moreExpressions*^");
         rules.put("moreExpressions", "',' expression");
         rules.put("expression", "term opTerm*^");
-        rules.put("opTerm", "op term");
-        rules.put("term", "(indexedExpression|subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|<Identifier>)");  // incomplete
-        rules.put("indexedExpression", "<Identifier> indexExpression");
+        rules.put("opTerm", "op^ term");
+        rules.put("term", "(indexedExpression|subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|identifier)^");  // incomplete
+        rules.put("indexedExpression", "<Identifier> indexExpression^");
         rules.put("subExpression", "'(' expression ')'");
         rules.put("unaryExpression", "unaryOp term");
+        rules.put("identifier", "<Identifier>");
         rules.put("integerConstant", "<IntegerConstant>");
         rules.put("stringConstant", "<StringConstant>");
         rules.put("keywordConstant", "('true'|'false'|'null'|'this')");
@@ -106,6 +108,8 @@ public class Parser {
 
     public boolean testOffset(String rule, int offset) {
         Token head = tokenIterator.peek(offset);
+        rule = rule.endsWith("^") ? rule.substring(0, rule.length()-1) : rule; // remove pass-through marker
+
         // TERMINAL RULES
         if (rule.startsWith("'") && rule.endsWith("'")) {  // rule is a literal terminal rule
             return rule.substring(1, rule.length() - 1).equals(head.getValue());
@@ -148,21 +152,22 @@ public class Parser {
     public Element comp(String rule) throws JackCompilerException {
         Token head = tokenIterator.curr();
         Element element;
-        // rule is a terminal rule
+        // TERMINAL RULE
         if ( (rule.startsWith("'") && rule.endsWith("'")) || (rule.startsWith("/") && rule.endsWith("/")) || (rule.startsWith("<") && rule.endsWith(">")) ) {
             if (!test(rule)) {
                 throw new JackCompilerException(
                         "Expected token " + rule + " but found '" + head.getValue() + "'", head.getLine(), head.getColumn()
                 );
             }
-            element = document.createElement(head.getType().toString().toLowerCase());
+            String ruleType = head.getType().toString();
+            String elementName = ruleType.substring(0, 1).toLowerCase() + ruleType.substring(1);  // decapitalize
+            element = document.createElement(elementName);
             element.setTextContent(" "+head.getValue()+" ");
             tokenIterator.next();
         }
-        // rule is non-terminal rule
+        // NON-TERMINAL RULE
         else if (this.rules.containsKey(rule)) {
             String[] childRules = this.rules.get(rule).split(" +");
-            //if (childRules.length == 1) return comp(childRules[0]);  // flatten nodes if only one descendant
             element = document.createElement(rule);
             for (String childRule: childRules) {
                 boolean skip = false;
@@ -175,7 +180,6 @@ public class Parser {
                 // Gather children elements
                 if (childRule.endsWith("?")) {  // child rule is optional
                     String baseRule = childRule.substring(0, childRule.length()-1);
-
                     if (test(baseRule)) {
                         childrenElements.add(comp(baseRule));
                     }
@@ -203,7 +207,7 @@ public class Parser {
                 }
             }
         }
-        // Rule has different options
+        // Rule has different options SUPPORT ^ MARK !!!
         else if (rule.startsWith("(") && rule.endsWith(")")) {
             for (String rule_try : rule.substring(1, rule.length()-1).split("\\|")) {
                 if (test(rule_try)) {
