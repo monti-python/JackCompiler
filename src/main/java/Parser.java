@@ -12,11 +12,8 @@ import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 
-import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -49,9 +46,11 @@ public class Parser {
     private final TokenIterator tokenIterator;
     private final Document document;
 
-    public Parser(List<Token> tokenList) throws ParserConfigurationException, IOException {
-        Path grammarPath = FileSystems.getDefault().getPath("src/main/resources/jack.grammar");
-        this.rules = Files.lines(grammarPath)
+    public Parser(List<Token> tokenList) throws ParserConfigurationException {
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("main/resources/grammars/jack.txt");
+        assert inputStream != null;
+        BufferedReader grammarReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        this.rules = grammarReader.lines()
                 .filter(s -> s.matches("^\\w+:.*"))
                 .collect(Collectors.toMap(k -> k.split(":")[0].trim(), v -> v.split(":")[1].trim()));
         this.tokenIterator = new TokenIterator(tokenList);
