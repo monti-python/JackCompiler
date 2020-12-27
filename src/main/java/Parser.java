@@ -60,7 +60,7 @@ public class Parser {
         rules.put("letStatement", "'let' <Identifier> indexExpression?^ '=' expression ';'");
         rules.put("indexExpression", "'[' expression ']'");
         rules.put("ifStatement", "'if' '(' expression ')' '{' statements '}' else?^");
-        rules.put("else", "'else' '{' statement* '}'");
+        rules.put("else", "'else' '{' statements '}'");
         rules.put("whileStatement", "'while' '(' expression ')' '{' statements '}'");
         rules.put("doStatement", "'do' subroutineCall^ ';'");
         rules.put("returnStatement", "'return' expression? ';'");
@@ -80,7 +80,10 @@ public class Parser {
         rules.put("integerConstant", "<IntegerConstant>");
         rules.put("stringConstant", "<StringConstant>");
         rules.put("keywordConstant", "('true'|'false'|'null'|'this')");
-        rules.put("op", "('+'|'-'|'*'|'/'|'&'|'<'|'>'|'=')");  // incomplete
+        rules.put("op", "(opOr|opRest)^");  // incomplete
+        rules.put("opOr", "'|'");
+        rules.put("opRest", "('+'|'-'|'*'|'/'|'&'|'<'|'>'|'=')");
+
         rules.put("unaryOp", "('-'|'~')");
 
 
@@ -201,7 +204,7 @@ public class Parser {
         }
         // Rule has different options
         else if (rule.startsWith("(") && rule.endsWith(")")) {
-            for (String rule_try : rule.substring(1, rule.length()-1).split("\\|")) {
+            for (String rule_try : rule.substring(1, rule.length()-1).split("(?<!\\\\)\\|")) {
                 if (test(rule_try)) {
                     return comp(rule_try);
                 }
