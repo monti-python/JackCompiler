@@ -8,8 +8,12 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.*;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 
 import java.io.IOException;
+import java.io.StringWriter;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,7 +40,6 @@ class TokenIterator {
     public Token peek(int offset) {
         return idx+offset < tokenList.size() ? this.tokenList.get(idx+offset): null;
     }
-
 }
 
 
@@ -55,11 +58,26 @@ public class Parser {
         this.document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
     }
 
-    public boolean test(String rule) {
+    public String compileClass() throws JackCompilerException, TransformerException {
+        Element element = comp("class");
+
+        TransformerFactory tf = TransformerFactory.newInstance();
+        Transformer transformer = tf.newTransformer();
+        transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+        transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+        transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "2");
+        transformer.setOutputProperty(OutputKeys.METHOD, "html");
+
+        StringWriter writer = new StringWriter();
+        transformer.transform(new DOMSource(element), new StreamResult(writer));
+        return writer.getBuffer().toString();
+    }
+
+    private boolean test(String rule) {
         return testOffset(rule, 0);
     }
 
-    public boolean testOffset(String rule, int offset) {
+    private boolean testOffset(String rule, int offset) {
         Token head = tokenIterator.peek(offset);
         rule = rule.endsWith("^") ? rule.substring(0, rule.length()-1) : rule; // remove pass-through marker
 
@@ -102,7 +120,7 @@ public class Parser {
         }
     }
 
-    public Element comp(String rule) throws JackCompilerException {
+    private Element comp(String rule) throws JackCompilerException {
         rule = rule.endsWith("^") ? rule.substring(0, rule.length()-1) : rule; // remove pass-through marker
         Token head = tokenIterator.curr();
         Element element;
