@@ -1,0 +1,40 @@
+class: 'class' <Identifier> '{' classVarDec* subroutineDec* '}'
+classVarDec: ('static'|'field') type^ <Identifier> moreVars*^ ';'
+moreVars: ',' <Identifier>
+type: ('int'|'char'|'boolean'|'void'|<Identifier>)
+subroutineDec: ('constructor'|'method'|'function') type^ <Identifier> '(' parameterList ')' subroutineBody
+subroutineName: <Identifier>
+parameterList: parameterListOpt?^
+parameterListOpt: type^ <Identifier> moreParameters*^
+moreParameters: ',' type^ <Identifier>
+subroutineBody: '{' varDec* statements '}'
+statements: statement*^
+varDec: 'var' type^ <Identifier> moreVars*^ ';'
+statement: (letStatement|ifStatement|whileStatement|doStatement|returnStatement)
+letStatement: 'let' <Identifier> indexExpression?^ '=' expression ';'
+indexExpression: '[' expression ']'
+ifStatement: 'if' '(' expression ')' '{' statements '}' else?^
+else: 'else' '{' statements '}'
+whileStatement: 'while' '(' expression ')' '{' statements '}'
+doStatement: 'do' subroutineCall^ ';'
+returnStatement: 'return' expression? ';'
+subroutineCall: (subroutineCall1|subroutineCall2)^
+subroutineCall1: <Identifier> '(' expressionList ')'
+subroutineCall2: <Identifier> '.' <Identifier> '(' expressionList ')'
+expressionList: expressionListOpt?^
+expressionListOpt: expression moreExpressions*^
+moreExpressions: ',' expression
+expression: term opTerm*^
+opTerm: op^ term
+term: (indexedExpression|subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|identifier)^
+indexedExpression: <Identifier> indexExpression^
+subExpression: '(' expression ')'
+unaryExpression: unaryOp^ term
+identifier: <Identifier>
+integerConstant: <IntegerConstant>
+stringConstant: <StringConstant>
+keywordConstant: ('true'|'false'|'null'|'this')
+unaryOp: ('-'|'~')
+op: (opOr|opRest)^
+opOr: '|'
+opRest: ('+'|'-'|'*'|'/'|'&'|'<'|'>'|'=')

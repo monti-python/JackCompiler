@@ -6,10 +6,15 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
+
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 class TokenIterator {
@@ -37,63 +42,17 @@ class TokenIterator {
 
 public class Parser {
 
-    private final HashMap<String, String> rules;
+    private final Map<String, String> rules;
     private final TokenIterator tokenIterator;
-    private Document document = null;
+    private final Document document;
 
-    public Parser(List<Token> tokenList) throws ParserConfigurationException {
+    public Parser(List<Token> tokenList) throws ParserConfigurationException, IOException {
+        Path grammarPath = FileSystems.getDefault().getPath("src/main/resources/jack.grammar");
+        this.rules = Files.lines(grammarPath)
+                .filter(s -> s.matches("^\\w+:.*"))
+                .collect(Collectors.toMap(k -> k.split(":")[0].trim(), v -> v.split(":")[1].trim()));
         this.tokenIterator = new TokenIterator(tokenList);
-        this.rules = new HashMap<>();
-        rules.put("class", "'class' <Identifier> '{' classVarDec* subroutineDec* '}'");
-        rules.put("classVarDec", "('static'|'field') type^ <Identifier> moreVars*^ ';'");
-        rules.put("moreVars", "',' <Identifier>");
-        rules.put("type", "('int'|'char'|'boolean'|'void'|<Identifier>)");
-        rules.put("subroutineDec", "('constructor'|'method'|'function') type^ <Identifier> '(' parameterList ')' subroutineBody");
-        rules.put("subroutineName", "<Identifier>");
-        rules.put("parameterList", "parameterListOpt?^");
-        rules.put("parameterListOpt", "type^ <Identifier> moreParameters*^");
-        rules.put("moreParameters", "',' type^ <Identifier>");
-        rules.put("subroutineBody", "'{' varDec* statements '}'");
-        rules.put("statements", "statement*^");
-        rules.put("varDec", "'var' type^ <Identifier> moreVars*^ ';'");
-        rules.put("statement", "(letStatement|ifStatement|whileStatement|doStatement|returnStatement)");
-        rules.put("letStatement", "'let' <Identifier> indexExpression?^ '=' expression ';'");
-        rules.put("indexExpression", "'[' expression ']'");
-        rules.put("ifStatement", "'if' '(' expression ')' '{' statements '}' else?^");
-        rules.put("else", "'else' '{' statements '}'");
-        rules.put("whileStatement", "'while' '(' expression ')' '{' statements '}'");
-        rules.put("doStatement", "'do' subroutineCall^ ';'");
-        rules.put("returnStatement", "'return' expression? ';'");
-        rules.put("subroutineCall", "(subroutineCall1|subroutineCall2)^");
-        rules.put("subroutineCall1", "<Identifier> '(' expressionList ')'");
-        rules.put("subroutineCall2", "<Identifier> '.' <Identifier> '(' expressionList ')'");
-        rules.put("expressionList", "expressionListOpt?^");
-        rules.put("expressionListOpt", "expression moreExpressions*^");
-        rules.put("moreExpressions", "',' expression");
-        rules.put("expression", "term opTerm*^");
-        rules.put("opTerm", "op^ term");
-        rules.put("term", "(indexedExpression|subroutineCall|subExpression|unaryExpression|integerConstant|stringConstant|keywordConstant|identifier)^");  // incomplete
-        rules.put("indexedExpression", "<Identifier> indexExpression^");
-        rules.put("subExpression", "'(' expression ')'");
-        rules.put("unaryExpression", "unaryOp^ term");
-        rules.put("identifier", "<Identifier>");
-        rules.put("integerConstant", "<IntegerConstant>");
-        rules.put("stringConstant", "<StringConstant>");
-        rules.put("keywordConstant", "('true'|'false'|'null'|'this')");
-        rules.put("op", "(opOr|opRest)^");  // incomplete
-        rules.put("opOr", "'|'");
-        rules.put("opRest", "('+'|'-'|'*'|'/'|'&'|'<'|'>'|'=')");
-
-        rules.put("unaryOp", "('-'|'~')");
-
-
-
-
-        DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
-        this.document = documentBuilder.newDocument();
-
-
+        this.document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
     }
 
     public boolean test(String rule) {
