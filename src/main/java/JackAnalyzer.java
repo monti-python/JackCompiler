@@ -1,6 +1,5 @@
-package main.java;
 
-import main.java.exceptions.JackCompilerException;
+import exceptions.JackCompilerException;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.*;

@@ -1,7 +1,6 @@
-package main.java;
 
-import main.java.exceptions.JackCompilerException;
-import main.java.model.Token;
+import exceptions.JackCompilerException;
+import model.Token;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -47,7 +46,7 @@ public class Parser {
     private final Document document;
 
     public Parser(List<Token> tokenList) throws ParserConfigurationException {
-        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("main/resources/grammars/jack.txt");
+        InputStream inputStream = getClass().getClassLoader().getResourceAsStream("grammars/jack.txt");
         assert inputStream != null;
         BufferedReader grammarReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
         this.rules = grammarReader.lines()

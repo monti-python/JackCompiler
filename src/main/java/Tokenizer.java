@@ -1,6 +1,5 @@
-package main.java;
 
-import main.java.model.Token;
+import model.Token;
 
 import java.io.IOException;
 import java.nio.file.Files;
